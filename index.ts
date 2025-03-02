@@ -19,6 +19,17 @@ const initServer = async () => {
     const userEntity = getUserEntity();
     const messageEntity = getMessageEntity();
 
+    app.get('/users/messages', async (req: Request, res: Response) => {
+        try{
+            const userId = req.query.user_id;
+            const response = await messageEntity.query.byUser({ userId }).go();
+            res.status(200).send(response);
+        }catch (e){
+            console.error(e);
+            res.status(500).send({ error: "Failed to fetch user messages" });
+        }
+    });
+
     app.post('/users/create', async (req: Request, res: Response) => {
         try{
             const user = req.body;
@@ -62,17 +73,6 @@ const initServer = async () => {
             res.status(500).send({ error: "Failed to fetch message" });
         }
     })
-
-    app.get('/users/messages', async (req: Request, res: Response) => {
-        try{
-            const userId = req.query.user_id;
-            const response = await messageEntity.query.byUser({ gsi1pk: `user#${userId}` }).go();
-            res.status(200).send(response);
-        }catch (e){
-            console.error(e);
-            res.status(500).send({ error: "Failed to fetch user messages" });
-        }
-    });
 
     app.listen(PORT, () => {
         console.log(`✅ Server is running on port ${PORT}`);

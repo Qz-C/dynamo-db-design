@@ -2,9 +2,10 @@ import { config as dotenvConfig } from "dotenv";
 import {
     DynamoDBClient,
     CreateTableCommand,
+    DescribeTableCommand,
     ScalarAttributeType,
     KeyType,
-    ProjectionType, DeleteTableCommand
+    ProjectionType
 } from '@aws-sdk/client-dynamodb';
 import { v4 as uuid } from 'uuid';
 import { Entity } from 'electrodb';
@@ -50,35 +51,30 @@ const tableDefinition = {
 
 
 const initSingleTable = async () => {
-    try{
-        const deleteTable = new DeleteTableCommand({
-            TableName: "SingleTableApp"
-        });
-
-        const createTable = new CreateTableCommand(tableDefinition);
-
-        // Cleaning up previous table
-        /*try{
-            const deleted = await getDynamoClient().send(deleteTable);
-            console.log('Cleaned previous table', deleted);
-        }catch (e){
-            console.error("Not possible to delete previous created DynamoDB table", e);
-        }
-*/
-        // Creating new table
+        // Check if table already exists, not checking status for simplicity
+        // It is important to make sure the table exists, because electroDB does not manages it
+        let existingTable;
         try{
-            const created = await getDynamoClient().send(createTable);
-            console.log('Created DynamoDB table:', created);
-        }catch (e){
-            console.error("Not possible to create DynamoDB table", e);
+            const getTable = new DescribeTableCommand({TableName: "SingleTableApp"});
+            existingTable = await getDynamoClient().send(getTable);
+            console.log('DynamoDB table already exists:', existingTable);
+        }catch {}
+
+        // If for some reason the table not exists let's create it
+        if(!existingTable){
+            try{
+                const createTable = new CreateTableCommand(tableDefinition);
+                const created = await getDynamoClient().send(createTable);
+                console.log('Created new DynamoDB table:', created);
+            }catch (e){
+                console.error("Not possible to create DynamoDB table", e);
+            }
         }
-    } catch (e){
-        console.error('An error occurred while creating DynamoDB table:', e);
-    }
 }
 
 let dynamoClient: DynamoDBClient | null = null;
 
+// Singleton pattern to get the DynamoDB client
 export function getDynamoClient(): DynamoDBClient {
     if (!dynamoClient) {
         dynamoClient = new DynamoDBClient({
@@ -92,6 +88,7 @@ export function getDynamoClient(): DynamoDBClient {
     return dynamoClient;
 }
 
+// Connect to the database and create the table if not exists
 export const connectDB = async () => {
     getDynamoClient();
     await initSingleTable();
@@ -99,6 +96,7 @@ export const connectDB = async () => {
 
 let userEntity: any = null;
 
+// Singleton pattern to get the User entity
 export const getUserEntity = () => {
     if(!userEntity){
         userEntity = new Entity({
@@ -112,10 +110,6 @@ export const getUserEntity = () => {
                         type: 'string',
                         default: () => uuid(),
                     },
-                    /*sk: {
-                        type: "string",
-                        default: () => 'USER',
-                    },*/
                     name: {
                         type: 'string',
                         required: true
@@ -165,6 +159,8 @@ export const getUserEntity = () => {
 }
 
 let messageEntity: any = null;
+
+// Singleton pattern to get the Message entity
 export const getMessageEntity = () => {
     if(!messageEntity){
         messageEntity = new Entity(
